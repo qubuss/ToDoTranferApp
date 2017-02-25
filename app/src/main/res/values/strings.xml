@@ -3,4 +3,5 @@
     <string name="password">Password</string>
     <string name="e_mail">E-mail</string>
     <string name="kliknij_tutaj_aby_si_zarejestrowa">Kliknij tutaj aby się zarejestrować</string>
+    <string name="title_activity_main">MainActivity</string>
 </resources>

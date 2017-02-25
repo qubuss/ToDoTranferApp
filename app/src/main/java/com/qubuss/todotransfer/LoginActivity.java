@@ -1,5 +1,6 @@
 package com.qubuss.todotransfer;
 
+import android.app.ProgressDialog;
 import android.content.Intent;
 import android.support.annotation.NonNull;
 import android.support.v7.app.AppCompatActivity;
@@ -17,9 +18,9 @@ import com.google.firebase.auth.FirebaseAuth;
 public class LoginActivity extends AppCompatActivity {
 
     private FirebaseAuth mAuth;
-    private FirebaseAuth.AuthStateListener mAuthStateListener;
     private EditText emailED;
     private EditText passED;
+    private ProgressDialog progressDialog;
 
 
     @Override
@@ -31,6 +32,11 @@ public class LoginActivity extends AppCompatActivity {
         passED = (EditText) findViewById(R.id.passLoginED);
 
         mAuth = FirebaseAuth.getInstance();
+
+        progressDialog = new ProgressDialog(this);
+        progressDialog.setTitle("Loguje...");
+        progressDialog.setCancelable(false);
+
     }
 
     public void goToRegister(View view) {
@@ -40,8 +46,10 @@ public class LoginActivity extends AppCompatActivity {
     }
 
     public void handleLogin(View view) {
+        progressDialog.show();
         String email = emailED.getText().toString().trim();
         String password = passED.getText().toString().trim();
+
         mAuth.signInWithEmailAndPassword(email, password).addOnCompleteListener(this, new OnCompleteListener<AuthResult>() {
             @Override
             public void onComplete(@NonNull Task<AuthResult> task) {
@@ -58,5 +66,11 @@ public class LoginActivity extends AppCompatActivity {
                 }
             }
         });
+    }
+
+    @Override
+    protected void onStop() {
+        super.onStop();
+        progressDialog.hide();
     }
 }

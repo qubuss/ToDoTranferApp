@@ -1,5 +1,6 @@
 package com.qubuss.todotransfer;
 
+import android.app.ProgressDialog;
 import android.content.Intent;
 import android.support.annotation.NonNull;
 import android.support.v7.app.AppCompatActivity;
@@ -19,6 +20,7 @@ public class RegisterActivity extends AppCompatActivity {
     private FirebaseAuth mAuth;
     private EditText emailED;
     private EditText passED;
+    private ProgressDialog progressDialog;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -30,9 +32,14 @@ public class RegisterActivity extends AppCompatActivity {
         passED = (EditText) findViewById(R.id.passLoginED);
 
         mAuth = FirebaseAuth.getInstance();
+
+        progressDialog = new ProgressDialog(this);
+        progressDialog.setTitle("Rejestruje...");
+        progressDialog.setCancelable(false);
     }
 
     public void handleRegister(View view) {
+        progressDialog.show();
         String email = emailED.getText().toString().trim();
         String password = passED.getText().toString().trim();
 
@@ -59,5 +66,11 @@ public class RegisterActivity extends AppCompatActivity {
 
                 });
 
+    }
+
+    @Override
+    protected void onStop() {
+        super.onStop();
+        progressDialog.hide();
     }
 }
