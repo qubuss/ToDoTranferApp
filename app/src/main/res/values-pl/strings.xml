@@ -1,0 +1,8 @@
+<resources>
+    <string name="app_name">ToDo Transfer</string>
+    <string name="title_activity_main">To Do Transfer</string>
+    <string name="transferName">Przelew</string>
+    <string name="bankName">Nazwa banku</string>
+    <string name="zapisz">Zapisz dane</string>
+    <string name="dodaj">Dodaj nowy przelew</string>
+</resources>

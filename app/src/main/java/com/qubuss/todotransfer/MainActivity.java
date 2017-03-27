@@ -1,30 +1,38 @@
 package com.qubuss.todotransfer;
 
-import android.content.Intent;
+import android.app.AlertDialog;
+import android.content.DialogInterface;
+import android.content.res.Resources;
+import android.database.Cursor;
+import android.database.sqlite.SQLiteDatabase;
 import android.os.Bundle;
-import android.support.annotation.NonNull;
 import android.support.design.widget.FloatingActionButton;
-import android.support.design.widget.Snackbar;
 import android.support.v7.app.AppCompatActivity;
+import android.support.v7.widget.LinearLayoutManager;
+import android.support.v7.widget.RecyclerView;
 import android.support.v7.widget.Toolbar;
+import android.support.v7.widget.helper.ItemTouchHelper;
 import android.util.Log;
 import android.view.View;
+import android.widget.EditText;
+import android.widget.TextView;
 
-import com.google.firebase.auth.FirebaseAuth;
-import com.google.firebase.auth.FirebaseUser;
-import com.google.firebase.database.DatabaseError;
-import com.google.firebase.database.DatabaseReference;
-import com.google.firebase.database.FirebaseDatabase;
+import com.qubuss.todotransfer.database.DbContract;
+import com.qubuss.todotransfer.database.DbHelper;
+import com.qubuss.todotransfer.domain.Transfer;
 
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Objects;
+import java.util.ArrayList;
 
 public class MainActivity extends AppCompatActivity {
 
-    private FirebaseAuth mAuth;
-    private FirebaseAuth.AuthStateListener mAuthStateListener;
-    private FirebaseUser user;
+    private RecyclerView recyclerView;
+    private RecyclerView.LayoutManager layoutManager;
+    private RecyclerAdapter recyclerAdapter;
+    private ArrayList<Transfer> arrayList = new ArrayList<>();
+    private AlertDialog alertDialog;
+    private EditText nameET;
+    private EditText bankNameET;
+    private Resources resources;
 
 
     @Override
@@ -33,73 +41,116 @@ public class MainActivity extends AppCompatActivity {
         setContentView(R.layout.activity_main);
         Toolbar toolbar = (Toolbar) findViewById(R.id.toolbar);
         setSupportActionBar(toolbar);
-        mAuth = FirebaseAuth.getInstance();
+        resources = getResources();
+
+        init();
+        initAlertDialog();
+
+        readFromLocalStorage();
 
         FloatingActionButton fab = (FloatingActionButton) findViewById(R.id.fab);
         fab.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
-                FirebaseUser user2 = mAuth.getCurrentUser();
-                FirebaseDatabase database = FirebaseDatabase.getInstance();
-                DatabaseReference myReference = database.getReference(user2.getUid()).child("dane");
-                //  myReference.child("dane");
-                Map<String, Object> mapa = new HashMap<String, Object>();
-                mapa.put("imie", user.getDisplayName());
-                mapa.put("email", user.getEmail());
+                alertDialog.show();
 
-                //to samo childbyautoid w ios. przy dodawnaniu ustawia unikalne id
-                myReference.push().updateChildren(mapa);
-               // myReference.setValue(user2.getEmail());
             }
         });
 
-        mAuthStateListener = new FirebaseAuth.AuthStateListener() {
-            @Override
-            public void onAuthStateChanged(@NonNull FirebaseAuth firebaseAuth) {
-                user = firebaseAuth.getCurrentUser();
-                if(user != null){
-                    //User się zalogował
-                    Log.e(this.toString(), "onAuthStateChanged:signed_in:" + user.getUid());
-//
-                    FirebaseDatabase database = FirebaseDatabase.getInstance();
-                    DatabaseReference myReference = database.getReference(user.getUid()).child("dane").child("test");
-                  //  myReference.child("dane");
-                    myReference.setValue(user.getEmail());
-
-
-
-                }else{
-                    //User się nie zalogował
-                    Log.d(this.toString(), "onAuthStateChanged:signed_out");
-                    Intent intent = new Intent(getApplicationContext(), LoginActivity.class);
-                    startActivity(intent);
-                    onStop();
-                }
+        ItemTouchHelper.SimpleCallback simpleCallback = new ItemTouchHelper.SimpleCallback(0, ItemTouchHelper.LEFT ){ //| ItemTouchHelper.RIGHT
+            public boolean onMove(RecyclerView recyclerView,
+                                  RecyclerView.ViewHolder viewHolder, RecyclerView.ViewHolder target) {
+//                    final int fromPos = viewHolder.getAdapterPosition();
+//                    final int toPos = viewHolder.getAdapterPosition();
+//                    // move item in `fromPos` to `toPos` in adapter.
+                return true;// true if moved, false otherwise
             }
+
+            @Override
+            public void onSwiped(RecyclerView.ViewHolder viewHolder, int swipeDir) {
+                //Remove swiped item from list and notify the RecyclerView
+                recyclerAdapter.notifyItemRemoved(viewHolder.getLayoutPosition());
+                TextView test = (TextView) viewHolder.itemView.findViewById(R.id.transferIdTV);
+                Log.e("VIEWHOLDER", test.getText().toString().trim());
+                String idString = test.getText().toString().trim();
+                deleteFromLocalStorage(idString);
+            }
+
         };
+
+
+        ItemTouchHelper itemTouchHelper = new ItemTouchHelper(simpleCallback);
+        itemTouchHelper.attachToRecyclerView(recyclerView);
+
     }
 
-    @Override
-    protected void onStart() {
-        super.onStart();
-        mAuth.addAuthStateListener(mAuthStateListener);
+    private void init(){
+        layoutManager = new LinearLayoutManager(this);
+        recyclerView = (RecyclerView) findViewById(R.id.recyclerView);
+        recyclerView.setLayoutManager(layoutManager);
+        recyclerView.setHasFixedSize(true);
+        recyclerAdapter = new RecyclerAdapter(arrayList);
+        recyclerView.setAdapter(recyclerAdapter);
     }
 
-    @Override
-    protected void onStop() {
-        super.onStop();
-        if(mAuthStateListener !=null){
-            mAuth.removeAuthStateListener(mAuthStateListener);
+    private void initAlertDialog(){
+        View dialogView = getLayoutInflater().inflate(R.layout.alert_dialog_layout, null);
+        alertDialog = new AlertDialog.Builder(this).create();
+        alertDialog.setView(dialogView);
+        nameET = (EditText) dialogView.findViewById(R.id.nameET);
+        bankNameET = (EditText) dialogView.findViewById(R.id.bankNameET);
+        alertDialog.setTitle(resources.getString(R.string.dodaj));
+
+        alertDialog.setButton(DialogInterface.BUTTON_POSITIVE, resources.getString(R.string.zapisz), new DialogInterface.OnClickListener() {
+            @Override
+            public void onClick(DialogInterface dialog, int which) {
+                String name = nameET.getText().toString().trim();
+                String bankName = bankNameET.getText().toString().trim();
+                saveToLocalStorage(name, bankName);
+            }
+        });
+
+    }
+
+
+    private void readFromLocalStorage(){
+
+        arrayList.clear();
+        DbHelper dbHelper = new DbHelper(this);
+        SQLiteDatabase database = dbHelper.getReadableDatabase();
+
+        Cursor cursor = dbHelper.readFromLocalDataBase(database);
+        while (cursor.moveToNext()){
+
+            int id = cursor.getInt(cursor.getColumnIndex(DbContract.ID));
+            String name = cursor.getString(cursor.getColumnIndex(DbContract.NAME));
+            String bankName = cursor.getString(cursor.getColumnIndex(DbContract.BANK_NAME));
+            Log.e("ID", id+"");
+            arrayList.add(new Transfer(id, name, bankName));
         }
+
+        recyclerAdapter.notifyDataSetChanged();
+        cursor.close();
+        dbHelper.close();
     }
 
-    @Override
-    public void onBackPressed() {
-        mAuth.signOut();
-        Intent intent = new Intent(getApplicationContext(), LoginActivity.class);
-        startActivity(intent);
-        onStop();
+    private void saveToLocalStorage(String name, String bankName){
+
+        DbHelper dbHelper = new DbHelper(this);
+        SQLiteDatabase database = dbHelper.getWritableDatabase();
+        dbHelper.saveToLocalDataBase(name, bankName, database);
+        readFromLocalStorage();
+        dbHelper.close();
+
     }
 
+    private void deleteFromLocalStorage(String id){
+        DbHelper dbHelper = new DbHelper(this);
+        SQLiteDatabase database = dbHelper.getWritableDatabase();
+        int i = dbHelper.deleteFromLocalDataBase(id, database);
+        Log.e("DELETE", i+"");
+        readFromLocalStorage();
+        dbHelper.close();
+    }
 }
 

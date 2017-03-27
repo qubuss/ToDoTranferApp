@@ -1,7 +1,8 @@
 <resources>
-    <string name="app_name">ToDoTransfer</string>
-    <string name="password">Password</string>
-    <string name="e_mail">E-mail</string>
-    <string name="kliknij_tutaj_aby_si_zarejestrowa">Kliknij tutaj aby się zarejestrować</string>
-    <string name="title_activity_main">MainActivity</string>
+    <string name="app_name">ToDo Transfer</string>
+    <string name="title_activity_main">To Do Transfer</string>
+    <string name="transferName">Transfer</string>
+    <string name="bankName">Bank name</string>
+    <string name="zapisz">Save</string>
+    <string name="dodaj">Add new transfer</string>
 </resources>
